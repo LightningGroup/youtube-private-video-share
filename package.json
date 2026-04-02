@@ -1,23 +1,20 @@
 {
-  "name": "youtube-private-video-share-cli",
-  "version": "1.0.0",
-  "description": "CLI tool to add private share invitees in YouTube Studio using Playwright",
-  "main": "src/index.js",
-  "type": "commonjs",
+  "name": "youtube-private-video-share-frontend",
+  "version": "2.0.0",
+  "private": true,
+  "description": "React + Vite admin dashboard for YouTube private share server",
+  "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "interactive-login": "node src/index.js --interactive-login"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
-  "keywords": [
-    "youtube",
-    "youtube-studio",
-    "playwright",
-    "cli",
-    "automation"
-  ],
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "playwright": "^1.54.2"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
   }
 }
