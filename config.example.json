@@ -1,0 +1,14 @@
+{
+  "profileDir": ".yt-studio-profile",
+  "headless": false,
+  "videoIds": [
+    "AbCdEf12345"
+  ],
+  "emailsToAdd": [
+    "first@example.com",
+    "second@example.com"
+  ],
+  "disableEmailNotification": true,
+  "dryRun": false,
+  "locale": "auto"
+}

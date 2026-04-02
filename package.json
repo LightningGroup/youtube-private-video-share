@@ -1,0 +1,23 @@
+{
+  "name": "youtube-private-video-share-cli",
+  "version": "1.0.0",
+  "description": "CLI tool to add private share invitees in YouTube Studio using Playwright",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "interactive-login": "node src/index.js --interactive-login"
+  },
+  "keywords": [
+    "youtube",
+    "youtube-studio",
+    "playwright",
+    "cli",
+    "automation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "playwright": "^1.54.2"
+  }
+}
