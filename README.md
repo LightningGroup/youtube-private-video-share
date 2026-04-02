@@ -1,33 +1,72 @@
 # YouTube Private Video Share Dashboard (React + Vite)
 
-이 저장소는 기존 **Playwright CLI 중심 구조**를 Netlify 배포 가능한 **정적 React SPA**로 재구성한 프로젝트입니다.
+이 저장소는 **서버 API를 호출하는 관리자용 프론트엔드 SPA**입니다.
 
-- 프론트엔드는 브라우저에서만 실행됩니다.
-- Playwright/Chromium 실행은 프론트에서 하지 않고, 별도 서버 API로 위임됩니다.
-- 관리자 토큰은 빌드 환경변수에 넣지 않고, 사용자가 런타임에 입력해 `localStorage`에 저장합니다.
+- 브라우저에서 동작하는 React + Vite 정적 앱입니다.
+- Playwright/Chromium/CLI 실행은 프론트에서 하지 않습니다.
+- 실제 작업 실행은 별도의 백엔드 서버 API가 담당합니다.
+- 관리자 토큰/서버 URL은 런타임 입력값으로 `localStorage`에 저장됩니다.
 
-## 무엇이 바뀌었나
+## 프로젝트 개요
 
-- 기존 CLI 코드(`src/index.js`, `src/config.js`, `src/logger.js`, `src/youtubeStudioShare.js`)는 `legacy-cli/src/`로 이동했습니다.
-- 기존 `config.example.json`도 `legacy-cli/config.example.json`으로 이동했습니다.
-- 새 프론트 앱 코드는 `src/` 아래 React 컴포넌트/훅/유틸 구조로 구성했습니다.
+이 UI는 다음 흐름을 제공합니다.
 
-## 기술 스택
+1. 서버 Base URL 및 관리자 토큰 입력/저장
+2. 서버 연결 테스트 (`GET /health`)
+3. 세션 상태 확인 (`GET /api/session/status`)
+4. `storageState.json` 업로드/삭제
+5. Video ID + Email 목록 정규화 후 공유 작업 실행 (`POST /api/jobs/share`)
+6. 최근 작업 목록 조회 (`GET /api/jobs`)
+7. 작업 상세/로그/아티팩트 확인 (`GET /api/jobs/:jobId`)
 
-- React
-- Vite
-- JavaScript (TypeScript 미사용)
-- fetch API
-- 기본 CSS
+## 런타임 설정 방식 (중요)
 
-## 로컬 실행
+- 입력 항목
+  - 서버 Base URL
+  - 관리자 토큰
+- 저장 위치
+  - `localStorage['ytps.baseUrl']`
+  - `localStorage['ytps.adminToken']`
+- Base URL은 마지막 `/`를 자동 제거해 정규화합니다.
+- 토큰은 빌드 타임 환경변수로 주입하지 않습니다.
+
+## storageState.json 업로드 흐름
+
+1. 서버 URL/토큰 입력 후 저장
+2. 세션 패널에서 상태 조회
+3. `storageState.json` 파일 선택 후 업로드
+4. 업로드 성공 시 세션 상태 재조회
+5. 필요 시 `storageState` 삭제 버튼으로 제거
+
+## 작업 실행 및 결과 확인 흐름
+
+1. Video ID / Email 목록 입력 (줄바꿈, 콤마 모두 허용)
+2. 입력값 자동 정규화
+   - trim
+   - 빈 값 제거
+   - 중복 제거
+   - 이메일 기본 형식 검증
+3. `Dry-run 실행` 또는 `실제 실행` 버튼 클릭
+4. 생성된 `jobId` 표시
+5. 최근 작업 목록과 작업 상세를 통해 진행 상태 확인
+6. `queued/running` 상태일 때 2.5초 간격 polling
+7. 비디오별 결과, 로그, 아티팩트 링크 확인
+
+## 레거시 CLI 코드 정리
+
+기존 CLI/Playwright 실행 코드는 프론트 번들에서 사용되지 않도록 아래로 격리되어 있습니다.
+
+- `legacy-cli/src/`
+- `legacy-cli/config.example.json`
+
+프론트 앱(`src/`)은 위 레거시 코드를 import 하지 않습니다.
+
+## 로컬 개발
 
 ```bash
 npm install
 npm run dev
 ```
-
-브라우저에서 Vite 개발 서버 주소를 열어 UI를 사용하세요.
 
 ## 빌드
 
@@ -36,59 +75,17 @@ npm run build
 npm run preview
 ```
 
-`dist/` 폴더가 정적 배포 산출물입니다.
-
 ## Netlify 배포
 
-이 저장소에는 `netlify.toml`이 포함되어 있어 기본적으로 바로 배포됩니다.
+`netlify.toml`이 포함되어 있어 정적 배포가 바로 가능합니다.
 
-1. Netlify에서 이 GitHub 저장소를 연결
-2. Build command: `npm run build`
-3. Publish directory: `dist`
-4. 배포
+- Build command: `npm run build`
+- Publish directory: `dist`
+- SPA 리다이렉트: `/* -> /index.html` (200)
 
-SPA 라우팅 대응을 위해 다음 리다이렉트가 설정되어 있습니다.
+## 환경 변수 파일
 
-```toml
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-```
+`.env.example`는 샘플만 포함합니다.
 
-## 서버 URL / 관리자 토큰 설정 방식
-
-UI의 **서버 연결 설정 패널**에서:
-
-1. 서버 Base URL 입력
-2. 관리자 토큰 입력
-3. `로컬 저장` 클릭
-
-입력값은 브라우저 `localStorage`에만 저장됩니다.
-
-- localStorage key: `ytps.baseUrl`, `ytps.adminToken`
-- 코드/설정파일/.env에 토큰 하드코딩하지 않습니다.
-
-## storageState.json 업로드 흐름
-
-1. 서버 연결/토큰 설정 완료
-2. 세션 패널에서 `상태 새로고침`으로 `/api/session/status` 확인
-3. `storageState.json 업로드`에서 파일 선택 후 업로드
-4. 성공 메시지 확인
-5. 필요 시 `저장된 세션 삭제`로 서버 저장 세션 제거
-
-## 주요 UI 기능
-
-- `/health` 연결 테스트
-- `/api/session/status` 세션 상태 조회
-- `storageState.json` 업로드/삭제
-- video ID / email 입력 및 정규화
-- dry-run / 실제 실행
-- 최근 작업 목록 조회
-- 작업 상세(결과/로그/아티팩트 링크) 확인
-- 실행 중 작업 polling (2.5초 간격)
-
-## 보안 주의
-
-- 관리자 토큰은 민감 정보입니다. 개인 브라우저에서만 사용하세요.
-- 아티팩트 다운로드 엔드포인트는 서버 설정에 따라 별도 인증 처리가 필요할 수 있습니다.
+- 관리자 토큰 같은 민감값은 저장하지 마세요.
+- 이 프로젝트는 서버 URL/토큰을 런타임에 입력받습니다.

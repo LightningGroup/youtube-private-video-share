@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { normalizeBaseUrl } from '../utils/normalizeBaseUrl';
 
 export default function ServerConfigPanel({
   baseUrl,
@@ -12,9 +13,21 @@ export default function ServerConfigPanel({
   const [localBaseUrl, setLocalBaseUrl] = useState(baseUrl);
   const [localToken, setLocalToken] = useState(token);
 
+  useEffect(() => {
+    setLocalBaseUrl(baseUrl);
+  }, [baseUrl]);
+
+  useEffect(() => {
+    setLocalToken(token);
+  }, [token]);
+
   const handleSave = () => {
-    onBaseUrlChange(localBaseUrl.trim());
-    onTokenChange(localToken.trim());
+    const normalizedBaseUrl = normalizeBaseUrl(localBaseUrl);
+    const normalizedToken = localToken.trim();
+
+    setLocalBaseUrl(normalizedBaseUrl);
+    onBaseUrlChange(normalizedBaseUrl);
+    onTokenChange(normalizedToken);
   };
 
   return (
@@ -46,7 +59,7 @@ export default function ServerConfigPanel({
         <button type="button" onClick={handleSave} disabled={loading}>
           로컬 저장
         </button>
-        <button type="button" onClick={onTestConnection} disabled={loading || !localBaseUrl.trim()}>
+        <button type="button" onClick={() => onTestConnection(normalizeBaseUrl(localBaseUrl))} disabled={loading || !localBaseUrl.trim()}>
           {loading ? '확인 중...' : '연결 테스트 (/health)'}
         </button>
       </div>

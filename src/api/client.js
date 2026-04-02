@@ -1,6 +1,16 @@
+import { normalizeBaseUrl } from '../utils/normalizeBaseUrl';
+
 function joinUrl(baseUrl, path) {
-  const normalized = String(baseUrl || '').trim().replace(/\/$/, '');
-  return `${normalized}${path}`;
+  return `${normalizeBaseUrl(baseUrl)}${path}`;
+}
+
+function parseApiErrorMessage(data, fallback) {
+  if (!data || typeof data !== 'object') return fallback;
+  if (typeof data.message === 'string' && data.message.trim()) return data.message;
+  if (data.error && typeof data.error.message === 'string' && data.error.message.trim()) {
+    return data.error.message;
+  }
+  return fallback;
 }
 
 async function request(baseUrl, path, options = {}) {
@@ -9,17 +19,18 @@ async function request(baseUrl, path, options = {}) {
 
   try {
     response = await fetch(url, options);
-  } catch (error) {
-    const networkError = new Error('네트워크 오류: 서버에 연결할 수 없습니다.');
+  } catch (_) {
+    const networkError = new Error('서버에 연결할 수 없습니다. Base URL 또는 네트워크를 확인하세요.');
     networkError.code = 'NETWORK_ERROR';
     throw networkError;
   }
 
   if (!response.ok) {
     let message = `요청 실패 (${response.status})`;
+
     try {
       const data = await response.json();
-      message = data.message || data.error || message;
+      message = parseApiErrorMessage(data, message);
     } catch (_) {
       // noop
     }

@@ -168,6 +168,11 @@ button.danger {
   color: #1d4ed8;
 }
 
+.status.queued {
+  background: #e5e7eb;
+  color: #374151;
+}
+
 .meta-list,
 .log-list,
 .artifact-list {
@@ -202,4 +207,9 @@ td {
   .container {
     padding: 10px;
   }
+}
+
+.artifact-list.in-cell {
+  margin: 0;
+  padding-left: 16px;
 }

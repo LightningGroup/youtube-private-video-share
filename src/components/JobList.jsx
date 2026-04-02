@@ -2,6 +2,7 @@ function statusClass(status) {
   if (status === 'success' || status === 'completed') return 'status success';
   if (status === 'failed') return 'status failed';
   if (status === 'partial') return 'status partial';
+  if (status === 'queued') return 'status queued';
   return 'status running';
 }
 
