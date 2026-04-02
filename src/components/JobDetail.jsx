@@ -1,11 +1,14 @@
+import { normalizeBaseUrl } from '../utils/normalizeBaseUrl';
+
 function statusClass(status) {
   if (status === 'success' || status === 'completed') return 'status success';
   if (status === 'failed') return 'status failed';
   if (status === 'partial') return 'status partial';
+  if (status === 'queued') return 'status queued';
   return 'status running';
 }
 
-export default function JobDetail({ detail, baseUrl, token, artifactUrlBuilder }) {
+export default function JobDetail({ detail, baseUrl, artifactUrlBuilder }) {
   if (!detail) {
     return (
       <section className="panel">
@@ -41,6 +44,7 @@ export default function JobDetail({ detail, baseUrl, token, artifactUrlBuilder }
               <th>status</th>
               <th>addedCount</th>
               <th>message</th>
+              <th>artifacts</th>
             </tr>
           </thead>
           <tbody>
@@ -52,6 +56,21 @@ export default function JobDetail({ detail, baseUrl, token, artifactUrlBuilder }
                 </td>
                 <td>{item.addedCount}</td>
                 <td>{item.message}</td>
+                <td>
+                  {Array.isArray(item.artifacts) && item.artifacts.length > 0 ? (
+                    <ul className="artifact-list in-cell">
+                      {item.artifacts.map((artifact) => (
+                        <li key={`${item.videoId}-${artifact.fileName}`}>
+                          <a href={artifact.url ? `${normalizeBaseUrl(baseUrl)}${artifact.url}` : artifactUrlBuilder(baseUrl, detail.jobId, artifact.fileName)} target="_blank" rel="noreferrer">
+                            {artifact.fileName}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    '-'
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -62,32 +81,10 @@ export default function JobDetail({ detail, baseUrl, token, artifactUrlBuilder }
       <ul className="log-list">
         {(detail.logs || []).map((log, index) => (
           <li key={`${log.time}-${index}`}>
-            [{log.time}] [{log.level}] {log.message}
+            [{new Date(log.time).toLocaleString()}] [{log.level}] {log.message}
           </li>
         ))}
       </ul>
-
-      <h3>아티팩트</h3>
-      <ul className="artifact-list">
-        {(detail.artifacts || []).map((fileName) => (
-          <li key={fileName}>
-            <a
-              href={artifactUrlBuilder(baseUrl, detail.jobId, fileName)}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(event) => {
-                if (!token) {
-                  event.preventDefault();
-                  alert('아티팩트 다운로드 전 관리자 토큰을 먼저 입력해 주세요.');
-                }
-              }}
-            >
-              {fileName}
-            </a>
-          </li>
-        ))}
-      </ul>
-      <p className="hint">아티팩트 요청 시 브라우저/서버 설정에 따라 Authorization 헤더가 필요할 수 있습니다.</p>
     </section>
   );
 }

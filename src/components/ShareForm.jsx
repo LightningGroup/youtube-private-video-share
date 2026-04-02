@@ -5,7 +5,6 @@ export default function ShareForm({ onSubmit, loading }) {
   const [videoInput, setVideoInput] = useState('');
   const [emailInput, setEmailInput] = useState('');
   const [disableEmailNotification, setDisableEmailNotification] = useState(true);
-  const [dryRun, setDryRun] = useState(true);
   const [locale, setLocale] = useState('auto');
   const [validationError, setValidationError] = useState('');
 
@@ -16,12 +15,16 @@ export default function ShareForm({ onSubmit, loading }) {
     return { videoIds, emails: valid, invalidEmails: invalid };
   }, [videoInput, emailInput]);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const submitWithDryRun = async (dryRun) => {
     setValidationError('');
 
     if (normalized.videoIds.length === 0) {
       setValidationError('최소 1개 이상의 video ID가 필요합니다.');
+      return;
+    }
+
+    if (normalized.emails.length === 0) {
+      setValidationError('최소 1개 이상의 이메일이 필요합니다.');
       return;
     }
 
@@ -42,7 +45,7 @@ export default function ShareForm({ onSubmit, loading }) {
   return (
     <section className="panel">
       <h2>3) 공유 실행</h2>
-      <form onSubmit={handleSubmit} className="grid-form">
+      <div className="grid-form">
         <div className="field">
           <label htmlFor="video-ids">Video IDs (줄바꿈/콤마 구분)</label>
           <textarea
@@ -74,10 +77,6 @@ export default function ShareForm({ onSubmit, loading }) {
             />
             이메일 알림 비활성화
           </label>
-          <label className="checkbox">
-            <input type="checkbox" checked={dryRun} onChange={(event) => setDryRun(event.target.checked)} />
-            Dry Run
-          </label>
         </div>
 
         <div className="field">
@@ -96,10 +95,15 @@ export default function ShareForm({ onSubmit, loading }) {
 
         {validationError && <p className="message error">{validationError}</p>}
 
-        <button type="submit" disabled={loading}>
-          {loading ? '실행 요청 중...' : '작업 실행'}
-        </button>
-      </form>
+        <div className="row gap-sm wrap">
+          <button type="button" disabled={loading} onClick={() => submitWithDryRun(true)}>
+            {loading ? '요청 중...' : 'Dry-run 실행'}
+          </button>
+          <button type="button" disabled={loading} onClick={() => submitWithDryRun(false)}>
+            {loading ? '요청 중...' : '실제 실행'}
+          </button>
+        </div>
+      </div>
     </section>
   );
 }
