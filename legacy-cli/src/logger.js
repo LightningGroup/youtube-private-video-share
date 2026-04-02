@@ -16,9 +16,10 @@ function log(level, message, meta) {
   const line = format(level, message, meta);
   if (level === 'ERROR') {
     console.error(line);
-  } else {
-    console.log(line);
+    return;
   }
+
+  console.log(line);
 }
 
 function ensureDir(dir) {

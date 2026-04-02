@@ -42,17 +42,27 @@ function parseArgs(argv) {
     if (token === '--config') {
       args.configPath = argv[i + 1];
       i += 1;
-    } else if (token === '--interactive-login') {
+      continue;
+    }
+    if (token === '--interactive-login') {
       args.interactiveLogin = true;
-    } else if (token === '--dry-run') {
+      continue;
+    }
+    if (token === '--dry-run') {
       args.dryRun = true;
-    } else if (token === '--video') {
+      continue;
+    }
+    if (token === '--video') {
       args.video = argv[i + 1];
       i += 1;
-    } else if (token === '--emails') {
+      continue;
+    }
+    if (token === '--emails') {
       args.emails = argv[i + 1];
       i += 1;
-    } else if (token.startsWith('--dry-run=')) {
+      continue;
+    }
+    if (token.startsWith('--dry-run=')) {
       const [, raw] = token.split('=');
       args.dryRun = parseBoolFlag(raw);
     }
