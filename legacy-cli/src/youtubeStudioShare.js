@@ -167,16 +167,17 @@ async function setNotificationToggle(page, disableEmailNotification) {
   }
 
   const shouldEnable = !disableEmailNotification;
-  if (checked !== shouldEnable) {
-    await safeClick(toggle, 'notify via email toggle');
-    logger.info('Adjusted email notification preference', {
-      disableEmailNotification
-    });
-  } else {
+  if (checked === shouldEnable) {
     logger.info('Email notification toggle already in desired state', {
       disableEmailNotification
     });
+    return;
   }
+
+  await safeClick(toggle, 'notify via email toggle');
+  logger.info('Adjusted email notification preference', {
+    disableEmailNotification
+  });
 }
 
 async function saveDialog(page, dryRun) {
@@ -207,12 +208,13 @@ async function savePageIfNeeded(page, dryRun) {
   }
 
   const disabled = await pageSave.isDisabled().catch(() => false);
-  if (!disabled) {
-    await safeClick(pageSave, 'page save');
-    await page.waitForTimeout(1000);
-  } else {
+  if (disabled) {
     logger.info('Page save button exists but already disabled.');
+    return;
   }
+
+  await safeClick(pageSave, 'page save');
+  await page.waitForTimeout(1000);
 }
 
 async function processVideo(page, options) {
