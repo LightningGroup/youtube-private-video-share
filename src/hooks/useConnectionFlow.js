@@ -19,12 +19,28 @@ function sortByCreatedAtDesc(items) {
   });
 }
 
+function unwrapConnection(payload) {
+  if (payload?.connection) return payload.connection;
+  if (payload?.data?.connection) return payload.data.connection;
+  if (payload?.data?.id || payload?.data?.connectionId) return payload.data;
+  return payload;
+}
+
+function unwrapLoginSession(payload) {
+  if (payload?.loginSession) return payload.loginSession;
+  if (payload?.data?.loginSession) return payload.data.loginSession;
+  if (payload?.data?.id || payload?.data?.loginSessionId) return payload.data;
+  return payload;
+}
+
 function getConnectionId(connection) {
-  return connection?.connectionId ?? connection?.id ?? '';
+  const normalizedConnection = unwrapConnection(connection);
+  return normalizedConnection?.connectionId ?? normalizedConnection?.id ?? '';
 }
 
 function getLoginSessionId(loginSession) {
-  return loginSession?.loginSessionId ?? loginSession?.id ?? '';
+  const normalizedLoginSession = unwrapLoginSession(loginSession);
+  return normalizedLoginSession?.loginSessionId ?? normalizedLoginSession?.id ?? '';
 }
 
 function normalizeStatus(status) {
@@ -94,7 +110,7 @@ export function useConnectionFlow({ baseUrl, token, canUseProtectedApi, formatEr
       if (!canUseProtectedApi) return null;
       if (!connectionId) return null;
 
-      const detail = await apiClient.getConnection(baseUrl, token, connectionId);
+      const detail = unwrapConnection(await apiClient.getConnection(baseUrl, token, connectionId));
       setConnection(detail);
       setConnectionState((previousState) =>
         deriveConnectionState({
@@ -149,7 +165,7 @@ export function useConnectionFlow({ baseUrl, token, canUseProtectedApi, formatEr
       setConnectionState(CONNECTION_FLOW_STATE.creatingConnection);
 
       try {
-        const created = await apiClient.createConnection(baseUrl, token, { channelLabel });
+        const created = unwrapConnection(await apiClient.createConnection(baseUrl, token, { channelLabel }));
         setConnection(created);
         setLoginSession(null);
         syncConnectionState(created, null);
@@ -181,7 +197,7 @@ export function useConnectionFlow({ baseUrl, token, canUseProtectedApi, formatEr
     setConnectionState(CONNECTION_FLOW_STATE.creatingLoginSession);
 
     try {
-      const created = await apiClient.createLoginSession(baseUrl, token, selectedConnectionId);
+      const created = unwrapLoginSession(await apiClient.createLoginSession(baseUrl, token, selectedConnectionId));
       setLoginSession(created);
       setConnectionState(CONNECTION_FLOW_STATE.waitingForAgentLogin);
       setSuccessMessage('로그인 세션이 생성되었습니다. 로컬 agent에서 로그인해 주세요.');
@@ -226,7 +242,9 @@ export function useConnectionFlow({ baseUrl, token, canUseProtectedApi, formatEr
     const timerId = setInterval(() => {
       void (async () => {
         try {
-          const nextLoginSession = await apiClient.getLoginSession(baseUrl, token, selectedLoginSessionId);
+          const nextLoginSession = unwrapLoginSession(
+            await apiClient.getLoginSession(baseUrl, token, selectedLoginSessionId)
+          );
           setLoginSession(nextLoginSession);
 
           const nextStatus = normalizeStatus(nextLoginSession?.status);
