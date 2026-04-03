@@ -52,15 +52,6 @@
 6. `queued/running` 상태일 때 2.5초 간격 polling
 7. 비디오별 결과, 로그, 아티팩트 링크 확인
 
-## 레거시 CLI 코드 정리
-
-기존 CLI/Playwright 실행 코드는 프론트 번들에서 사용되지 않도록 아래로 격리되어 있습니다.
-
-- `legacy-cli/src/`
-- `legacy-cli/config.example.json`
-
-프론트 앱(`src/`)은 위 레거시 코드를 import 하지 않습니다.
-
 ## 로컬 개발
 
 ```bash
