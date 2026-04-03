@@ -2,9 +2,11 @@ import { normalizeBaseUrl } from '../utils/normalizeBaseUrl';
 
 function statusClass(status) {
   if (status === 'success' || status === 'completed') return 'status success';
+  if (status === 'needs_reauth') return 'status failed';
   if (status === 'failed') return 'status failed';
   if (status === 'partial') return 'status partial';
   if (status === 'queued') return 'status queued';
+  if (status === 'claimed') return 'status running';
   return 'status running';
 }
 

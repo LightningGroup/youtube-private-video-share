@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { normalizeUniqueList, validateEmails } from '../utils/parseListInput';
 
-export default function ShareForm({ onSubmit, loading }) {
+export default function ShareForm({ connectionId, isConnectionReady, onSubmit, loading, submitError }) {
   const [videoInput, setVideoInput] = useState('');
   const [emailInput, setEmailInput] = useState('');
   const [disableEmailNotification, setDisableEmailNotification] = useState(true);
@@ -17,6 +17,11 @@ export default function ShareForm({ onSubmit, loading }) {
 
   const submitWithDryRun = async (dryRun) => {
     setValidationError('');
+
+    if (!isConnectionReady || !connectionId) {
+      setValidationError('YouTube 연결이 완료되어야 공유 작업을 실행할 수 있습니다.');
+      return;
+    }
 
     if (normalized.videoIds.length === 0) {
       setValidationError('최소 1개 이상의 video ID가 필요합니다.');
@@ -34,6 +39,7 @@ export default function ShareForm({ onSubmit, loading }) {
     }
 
     await onSubmit({
+      connectionId,
       videoIds: normalized.videoIds,
       emailsToAdd: normalized.emails,
       disableEmailNotification,
@@ -89,17 +95,19 @@ export default function ShareForm({ onSubmit, loading }) {
         </div>
 
         <div className="message info">
+          <div>connectionId: {connectionId || '(미연결)'}</div>
           <div>정규화 videoIds: {normalized.videoIds.join(', ') || '(없음)'}</div>
           <div>정규화 emails: {normalized.emails.join(', ') || '(없음)'}</div>
         </div>
 
         {validationError && <p className="message error">{validationError}</p>}
+        {submitError && <p className="message error">{submitError}</p>}
 
         <div className="row gap-sm wrap">
-          <button type="button" disabled={loading} onClick={() => submitWithDryRun(true)}>
+          <button type="button" disabled={loading || !isConnectionReady} onClick={() => submitWithDryRun(true)}>
             {loading ? '요청 중...' : 'Dry-run 실행'}
           </button>
-          <button type="button" disabled={loading} onClick={() => submitWithDryRun(false)}>
+          <button type="button" disabled={loading || !isConnectionReady} onClick={() => submitWithDryRun(false)}>
             {loading ? '요청 중...' : '실제 실행'}
           </button>
         </div>

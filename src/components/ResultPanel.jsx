@@ -43,7 +43,15 @@ function deriveDetailViewState({ selectedJobId, jobDetail, isDetailLoading, manu
 /**
  * 작업 결과 화면의 목록, 선택, 상세 갱신 흐름을 관리한다.
  */
-export default function ResultPanel({ baseUrl, token, canUseProtectedApi, initialJobId, onInitialJobHandled, formatError }) {
+export default function ResultPanel({
+  baseUrl,
+  token,
+  canUseProtectedApi,
+  initialJobId,
+  onInitialJobHandled,
+  formatError,
+  onNeedsReauth
+}) {
   const [jobs, setJobs] = useState([]);
   const [selectedJobId, setSelectedJobId] = useState('');
   const [jobDetail, setJobDetail] = useState(null);
@@ -62,8 +70,7 @@ export default function ResultPanel({ baseUrl, token, canUseProtectedApi, initia
     setListError('');
 
     try {
-      const data = await apiClient.getJobs(baseUrl, token);
-      const items = Array.isArray(data?.items) ? data.items : [];
+      const items = await apiClient.getJobs(baseUrl, token);
       setJobs(items);
       setJobsUpdatedAt(new Date().toISOString());
     } catch (error) {
@@ -88,7 +95,7 @@ export default function ResultPanel({ baseUrl, token, canUseProtectedApi, initia
       }
 
       try {
-        const detail = await apiClient.getJobDetail(baseUrl, token, nextJobId);
+        const detail = await apiClient.getJob(baseUrl, token, nextJobId);
         setSelectedJobId(nextJobId);
         setJobDetail(detail);
         setDetailUpdatedAt(new Date().toISOString());
@@ -172,6 +179,11 @@ export default function ResultPanel({ baseUrl, token, canUseProtectedApi, initia
     Boolean(selectedJobId)
   );
 
+  useEffect(() => {
+    if (jobDetail?.status !== 'needs_reauth') return;
+    onNeedsReauth?.();
+  }, [jobDetail?.status, onNeedsReauth]);
+
   const detailViewState = deriveDetailViewState({
     selectedJobId,
     jobDetail,
@@ -199,7 +211,9 @@ export default function ResultPanel({ baseUrl, token, canUseProtectedApi, initia
         selectedJobId={selectedJobId}
         onRefresh={() => refreshSelectedJob({ trigger: 'manual' })}
         loading={loading.detail}
-        isAutoRefreshing={jobDetail?.status === 'queued' || jobDetail?.status === 'running'}
+        isAutoRefreshing={
+          jobDetail?.status === 'queued' || jobDetail?.status === 'running' || jobDetail?.status === 'claimed'
+        }
         lastUpdatedAt={formatUpdatedAt(detailUpdatedAt)}
         manualError={manualError}
         pollingStatusMessage={pollingStatusMessage}

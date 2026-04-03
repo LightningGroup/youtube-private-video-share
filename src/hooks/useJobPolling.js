@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
-
-const ACTIVE_STATUSES = new Set(['queued', 'running']);
+import { ACTIVE_JOB_STATUSES } from '../constants/statuses';
 
 /**
  * 실행 중인 작업 상세를 주기적으로 다시 조회한다.
@@ -18,7 +17,7 @@ export function useJobPolling(jobStatus, fetchJobDetail, intervalMs = 2500, enab
     }
 
     const status = jobStatus;
-    if (!status || !ACTIVE_STATUSES.has(status)) {
+    if (!status || !ACTIVE_JOB_STATUSES.has(status)) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;

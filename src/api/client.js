@@ -1,3 +1,4 @@
+import { DEFAULT_USER_ID } from '../constants/statuses';
 import { normalizeBaseUrl } from '../utils/normalizeBaseUrl';
 
 function joinUrl(baseUrl, path) {
@@ -56,8 +57,25 @@ async function request(baseUrl, path, options = {}) {
 function authHeaders(token, headers = {}) {
   return {
     ...headers,
-    Authorization: `Bearer ${token}`
+    Authorization: `Bearer ${token}`,
+    'x-user-id': DEFAULT_USER_ID
   };
+}
+
+function createJsonOptions(token, method, body = {}) {
+  return {
+    method,
+    headers: authHeaders(token, {
+      'Content-Type': 'application/json'
+    }),
+    body: JSON.stringify(body)
+  };
+}
+
+function extractItems(data) {
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data)) return data;
+  return [];
 }
 
 export const apiClient = {
@@ -65,47 +83,50 @@ export const apiClient = {
     return request(baseUrl, '/health');
   },
 
-  getSessionStatus(baseUrl, token) {
-    return request(baseUrl, '/api/session/status', {
+  createConnection(baseUrl, token, payload = {}) {
+    return request(baseUrl, '/api/connections', createJsonOptions(token, 'POST', payload));
+  },
+
+  async getConnections(baseUrl, token) {
+    const data = await request(baseUrl, '/api/connections', {
+      headers: authHeaders(token)
+    });
+
+    return extractItems(data);
+  },
+
+  getConnection(baseUrl, token, connectionId) {
+    return request(baseUrl, `/api/connections/${connectionId}`, {
       headers: authHeaders(token)
     });
   },
 
-  uploadStorageState(baseUrl, token, file) {
-    const formData = new FormData();
-    formData.append('storageState', file);
-
-    return request(baseUrl, '/api/session/storage-state', {
+  createLoginSession(baseUrl, token, connectionId) {
+    return request(baseUrl, `/api/connections/${connectionId}/login-sessions`, {
       method: 'POST',
-      headers: authHeaders(token),
-      body: formData
+      headers: authHeaders(token)
     });
   },
 
-  deleteStorageState(baseUrl, token) {
-    return request(baseUrl, '/api/session/storage-state', {
-      method: 'DELETE',
+  getLoginSession(baseUrl, token, loginSessionId) {
+    return request(baseUrl, `/api/login-sessions/${loginSessionId}`, {
       headers: authHeaders(token)
     });
   },
 
   createShareJob(baseUrl, token, payload) {
-    return request(baseUrl, '/api/jobs/share', {
-      method: 'POST',
-      headers: authHeaders(token, {
-        'Content-Type': 'application/json'
-      }),
-      body: JSON.stringify(payload)
-    });
+    return request(baseUrl, '/api/jobs/share', createJsonOptions(token, 'POST', payload));
   },
 
-  getJobs(baseUrl, token) {
-    return request(baseUrl, '/api/jobs', {
+  async getJobs(baseUrl, token) {
+    const data = await request(baseUrl, '/api/jobs', {
       headers: authHeaders(token)
     });
+
+    return extractItems(data);
   },
 
-  getJobDetail(baseUrl, token, jobId) {
+  getJob(baseUrl, token, jobId) {
     return request(baseUrl, `/api/jobs/${jobId}`, {
       headers: authHeaders(token)
     });

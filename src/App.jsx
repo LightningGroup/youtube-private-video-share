@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react';
 import { apiClient } from './api/client';
 import ServerConfigPanel from './components/ServerConfigPanel';
-import SessionPanel from './components/SessionPanel';
+import YouTubeConnectionPanel from './components/YouTubeConnectionPanel';
 import ShareForm from './components/ShareForm';
 import ResultPanel from './components/ResultPanel';
+import { CONNECTION_FLOW_STATE } from './constants/statuses';
+import { useConnectionFlow } from './hooks/useConnectionFlow';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { normalizeBaseUrl } from './utils/normalizeBaseUrl';
 
 const WIZARD_STEPS = [
   { key: 'server', title: '서버 연결 설정' },
-  { key: 'session', title: '세션 상태 확인' },
+  { key: 'youtubeConnection', title: 'YouTube 연결' },
   { key: 'share', title: '공유 실행 설정' },
   { key: 'result', title: '작업 진행/결과 확인' }
 ];
@@ -26,11 +28,11 @@ function classifyError(error) {
 /**
  * 단계 이동 가능 여부를 계산한다.
  */
-function canEnterStep({ step, isConnectionReady, isSessionReady }) {
+function canEnterStep({ step, isServerReady, isYouTubeConnected }) {
   if (step <= 1) return true;
-  if (!isConnectionReady) return false;
+  if (!isServerReady) return false;
   if (step <= 2) return true;
-  if (!isSessionReady) return false;
+  if (!isYouTubeConnected) return false;
   return true;
 }
 
@@ -39,24 +41,29 @@ export default function App() {
   const [token, setToken] = useLocalStorage('ytps.adminToken', '');
 
   const [healthResult, setHealthResult] = useState(null);
-  const [session, setSession] = useState(null);
-  const [sessionError, setSessionError] = useState('');
-  const [sessionSuccess, setSessionSuccess] = useState('');
   const [jobMessage, setJobMessage] = useState('');
+  const [shareError, setShareError] = useState('');
   const [pendingInitialJobId, setPendingInitialJobId] = useState('');
   const [currentStep, setCurrentStep] = useState(INITIAL_STEP);
 
   const [loading, setLoading] = useState({
     health: false,
-    session: false,
     share: false
   });
 
   const canUseProtectedApi = useMemo(() => normalizeBaseUrl(baseUrl) && token.trim(), [baseUrl, token]);
-  const isConnectionReady = useMemo(() => Boolean(canUseProtectedApi && healthResult?.ok), [canUseProtectedApi, healthResult]);
-  const isSessionReady = useMemo(
-    () => Boolean(isConnectionReady && session?.authenticated && session?.hasStorageState),
-    [isConnectionReady, session]
+  const isServerReady = useMemo(() => Boolean(canUseProtectedApi && healthResult?.ok), [canUseProtectedApi, healthResult]);
+
+  const connectionFlow = useConnectionFlow({
+    baseUrl,
+    token,
+    canUseProtectedApi,
+    formatError: classifyError
+  });
+
+  const isYouTubeConnected = useMemo(
+    () => Boolean(isServerReady && connectionFlow.isConnected),
+    [connectionFlow.isConnected, isServerReady]
   );
 
   const testConnection = async (candidateBaseUrl) => {
@@ -67,7 +74,7 @@ export default function App() {
     }
 
     setBaseUrl(nextBaseUrl);
-    setLoading((prev) => ({ ...prev, health: true }));
+    setLoading((previous) => ({ ...previous, health: true }));
 
     try {
       const data = await apiClient.getHealth(nextBaseUrl);
@@ -75,99 +82,54 @@ export default function App() {
     } catch (error) {
       setHealthResult({ ok: false, message: classifyError(error) });
     } finally {
-      setLoading((prev) => ({ ...prev, health: false }));
-    }
-  };
-
-  const refreshSession = async () => {
-    if (!canUseProtectedApi) {
-      setSessionError('서버 URL과 관리자 토큰을 먼저 입력해 주세요.');
-      return;
-    }
-
-    setLoading((prev) => ({ ...prev, session: true }));
-    setSessionError('');
-    setSessionSuccess('');
-
-    try {
-      const data = await apiClient.getSessionStatus(baseUrl, token);
-      setSession(data);
-    } catch (error) {
-      setSessionError(classifyError(error));
-    } finally {
-      setLoading((prev) => ({ ...prev, session: false }));
-    }
-  };
-
-  const uploadStorageState = async (file) => {
-    if (!canUseProtectedApi) {
-      setSessionError('서버 URL과 관리자 토큰을 먼저 입력해 주세요.');
-      return;
-    }
-
-    setLoading((prev) => ({ ...prev, session: true }));
-    setSessionError('');
-    setSessionSuccess('');
-
-    try {
-      await apiClient.uploadStorageState(baseUrl, token, file);
-      setSessionSuccess('storageState 업로드 성공');
-      await refreshSession();
-    } catch (error) {
-      setSessionError(classifyError(error));
-    } finally {
-      setLoading((prev) => ({ ...prev, session: false }));
-    }
-  };
-
-  const deleteStorageState = async () => {
-    if (!canUseProtectedApi) {
-      setSessionError('서버 URL과 관리자 토큰을 먼저 입력해 주세요.');
-      return;
-    }
-
-    setLoading((prev) => ({ ...prev, session: true }));
-    setSessionError('');
-    setSessionSuccess('');
-
-    try {
-      await apiClient.deleteStorageState(baseUrl, token);
-      setSessionSuccess('저장된 storageState를 삭제했습니다.');
-      await refreshSession();
-    } catch (error) {
-      setSessionError(classifyError(error));
-    } finally {
-      setLoading((prev) => ({ ...prev, session: false }));
+      setLoading((previous) => ({ ...previous, health: false }));
     }
   };
 
   const createShareJob = async (payload) => {
     if (!canUseProtectedApi) {
-      alert('서버 URL과 관리자 토큰을 먼저 입력해 주세요.');
+      setShareError('서버 URL과 관리자 토큰을 먼저 입력해 주세요.');
       return;
     }
 
-    setLoading((prev) => ({ ...prev, share: true }));
+    if (!connectionFlow.connectionId || !isYouTubeConnected) {
+      setShareError('YouTube 연결이 완료되어야 공유 작업을 실행할 수 있습니다.');
+      return;
+    }
+
+    setLoading((previous) => ({ ...previous, share: true }));
     setJobMessage('');
+    setShareError('');
 
     try {
       const created = await apiClient.createShareJob(baseUrl, token, payload);
+      if (created?.status === 'needs_reauth') {
+        connectionFlow.markReauthRequired();
+        setShareError('세션이 만료되었습니다. 다시 연결하세요.');
+        setCurrentStep(2);
+        return;
+      }
+
       setJobMessage(`작업이 생성되었습니다. jobId=${created.jobId}, status=${created.status}`);
       setPendingInitialJobId(created.jobId);
       setCurrentStep(4);
     } catch (error) {
-      setJobMessage(classifyError(error));
+      setShareError(classifyError(error));
     } finally {
-      setLoading((prev) => ({ ...prev, share: false }));
+      setLoading((previous) => ({ ...previous, share: false }));
     }
   };
 
   const currentStepMeta = WIZARD_STEPS[currentStep - 1];
   const canGoBack = currentStep > 1;
-  const canGoForward = canEnterStep({ step: currentStep + 1, isConnectionReady, isSessionReady });
+  const canGoForward = canEnterStep({
+    step: currentStep + 1,
+    isServerReady,
+    isYouTubeConnected
+  });
 
   const goToStep = (nextStep) => {
-    if (!canEnterStep({ step: nextStep, isConnectionReady, isSessionReady })) return;
+    if (!canEnterStep({ step: nextStep, isServerReady, isYouTubeConnected })) return;
     setCurrentStep(nextStep);
   };
 
@@ -188,20 +150,32 @@ export default function App() {
 
     if (currentStep === 2) {
       return (
-        <SessionPanel
-          session={session}
-          onRefresh={refreshSession}
-          onUpload={uploadStorageState}
-          onDelete={deleteStorageState}
-          loading={loading.session}
-          error={sessionError}
-          success={sessionSuccess}
+        <YouTubeConnectionPanel
+          connection={connectionFlow.connection}
+          connectionId={connectionFlow.connectionId}
+          connectionState={connectionFlow.connectionState}
+          loginSession={connectionFlow.loginSession}
+          loginSessionId={connectionFlow.loginSessionId}
+          loading={connectionFlow.loading}
+          error={connectionFlow.error}
+          successMessage={connectionFlow.successMessage}
+          onCreateConnection={connectionFlow.createConnection}
+          onCreateLoginSession={connectionFlow.createLoginSession}
+          onRefresh={connectionFlow.refreshConnections}
         />
       );
     }
 
     if (currentStep === 3) {
-      return <ShareForm onSubmit={createShareJob} loading={loading.share} />;
+      return (
+        <ShareForm
+          connectionId={connectionFlow.connectionId}
+          isConnectionReady={isYouTubeConnected}
+          onSubmit={createShareJob}
+          loading={loading.share}
+          submitError={shareError}
+        />
+      );
     }
 
     return (
@@ -212,6 +186,10 @@ export default function App() {
         initialJobId={pendingInitialJobId}
         onInitialJobHandled={() => setPendingInitialJobId('')}
         formatError={classifyError}
+        onNeedsReauth={() => {
+          connectionFlow.markReauthRequired();
+          setCurrentStep(2);
+        }}
       />
     );
   };
@@ -220,6 +198,9 @@ export default function App() {
     <div className="container">
       <header className="page-header">
         <h1>YouTube 비공개 공유 작업</h1>
+        {connectionFlow.connectionState === CONNECTION_FLOW_STATE.reauthRequired && (
+          <p className="message error">세션이 만료되었습니다. 다시 연결하세요.</p>
+        )}
       </header>
 
       <section className="wizard-shell panel">
@@ -230,7 +211,7 @@ export default function App() {
             {WIZARD_STEPS.map((step, index) => {
               const stepNumber = index + 1;
               const isActive = currentStep === stepNumber;
-              const isBlocked = !canEnterStep({ step: stepNumber, isConnectionReady, isSessionReady });
+              const isBlocked = !canEnterStep({ step: stepNumber, isServerReady, isYouTubeConnected });
 
               return (
                 <li key={step.key} className={isActive ? 'active' : ''}>

@@ -120,6 +120,12 @@ li.active .step-chip-number {
   gap: 12px;
 }
 
+.grid-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -214,6 +220,16 @@ button.secondary-button {
 .message.info {
   background: #e0e7ff;
   color: #3730a3;
+}
+
+.command-block {
+  display: block;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #111827;
+  color: #f9fafb;
+  overflow: auto;
 }
 
 .panel-header {
