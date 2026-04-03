@@ -219,8 +219,7 @@ export default function App() {
   return (
     <div className="container">
       <header className="page-header">
-        <h1>YouTube Private Share Wizard</h1>
-        <p>Playwright 실행은 서버 API로 위임되고, 이 앱은 정적 React 프론트엔드로만 동작합니다.</p>
+        <h1>YouTube 비공개 공유 작업</h1>
       </header>
 
       <section className="wizard-shell panel">
