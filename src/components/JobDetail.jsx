@@ -1,12 +1,14 @@
 import { normalizeBaseUrl } from '../utils/normalizeBaseUrl';
+import { normalizeShareJobStatus, SHARE_JOB_STATUS } from '../constants/statuses';
 
 function statusClass(status) {
-  if (status === 'success' || status === 'completed') return 'status success';
-  if (status === 'needs_reauth') return 'status failed';
-  if (status === 'failed') return 'status failed';
-  if (status === 'partial') return 'status partial';
-  if (status === 'queued') return 'status queued';
-  if (status === 'claimed') return 'status running';
+  const normalizedStatus = normalizeShareJobStatus(status);
+  if (normalizedStatus === SHARE_JOB_STATUS.success) return 'status success';
+  if (normalizedStatus === SHARE_JOB_STATUS.needsReauth) return 'status failed';
+  if (normalizedStatus === SHARE_JOB_STATUS.failed) return 'status failed';
+  if (normalizedStatus === SHARE_JOB_STATUS.partial) return 'status partial';
+  if (normalizedStatus === SHARE_JOB_STATUS.queued) return 'status queued';
+  if (normalizedStatus === SHARE_JOB_STATUS.claimed) return 'status running';
   return 'status running';
 }
 
@@ -65,6 +67,9 @@ export default function JobDetail({
       <p>
         상태: <span className={statusClass(detail.status)}>{detail.status}</span>
       </p>
+      {normalizeShareJobStatus(detail.status) === SHARE_JOB_STATUS.needsReauth && (
+        <p className="message error">세션 만료, 다시 연결 필요</p>
+      )}
 
       <h3>요약</h3>
       <ul className="meta-list">

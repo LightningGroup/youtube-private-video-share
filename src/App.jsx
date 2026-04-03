@@ -4,7 +4,7 @@ import ServerConfigPanel from './components/ServerConfigPanel';
 import YouTubeConnectionPanel from './components/YouTubeConnectionPanel';
 import ShareForm from './components/ShareForm';
 import ResultPanel from './components/ResultPanel';
-import { CONNECTION_FLOW_STATE } from './constants/statuses';
+import { CONNECTION_FLOW_STATE, normalizeShareJobStatus, SHARE_JOB_STATUS } from './constants/statuses';
 import { useConnectionFlow } from './hooks/useConnectionFlow';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { normalizeBaseUrl } from './utils/normalizeBaseUrl';
@@ -42,6 +42,7 @@ export default function App() {
 
   const [healthResult, setHealthResult] = useState(null);
   const [jobMessage, setJobMessage] = useState('');
+  const [jobStatus, setJobStatus] = useState(SHARE_JOB_STATUS.idle);
   const [shareError, setShareError] = useState('');
   const [pendingInitialJobId, setPendingInitialJobId] = useState('');
   const [currentStep, setCurrentStep] = useState(INITIAL_STEP);
@@ -100,12 +101,16 @@ export default function App() {
     setLoading((previous) => ({ ...previous, share: true }));
     setJobMessage('');
     setShareError('');
+    setJobStatus(SHARE_JOB_STATUS.submitting);
 
     try {
       const created = await apiClient.createShareJob(baseUrl, token, payload);
-      if (created?.status === 'needs_reauth') {
+      const nextJobStatus = normalizeShareJobStatus(created?.status);
+      setJobStatus(nextJobStatus);
+
+      if (nextJobStatus === SHARE_JOB_STATUS.needsReauth) {
         connectionFlow.markReauthRequired();
-        setShareError('세션이 만료되었습니다. 다시 연결하세요.');
+        setShareError('세션 만료, 다시 연결 필요');
         setCurrentStep(2);
         return;
       }
@@ -114,6 +119,7 @@ export default function App() {
       setPendingInitialJobId(created.jobId);
       setCurrentStep(4);
     } catch (error) {
+      setJobStatus(SHARE_JOB_STATUS.failed);
       setShareError(classifyError(error));
     } finally {
       setLoading((previous) => ({ ...previous, share: false }));
@@ -244,6 +250,7 @@ export default function App() {
       </section>
 
       {jobMessage && <p className="message info">{jobMessage}</p>}
+      {jobStatus === SHARE_JOB_STATUS.needsReauth && <p className="message error">세션 만료, 다시 연결 필요</p>}
     </div>
   );
 }

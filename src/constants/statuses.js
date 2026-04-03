@@ -16,7 +16,7 @@ export const SHARE_JOB_STATUS = Object.freeze({
   success: 'success',
   partial: 'partial',
   failed: 'failed',
-  needsReauth: 'needs_reauth'
+  needsReauth: 'needsReauth'
 });
 
 export const ACTIVE_JOB_STATUSES = new Set([
@@ -25,10 +25,18 @@ export const ACTIVE_JOB_STATUSES = new Set([
   'running'
 ]);
 
+export const CONNECTION_PENDING_LOGIN_STATUSES = new Set([
+  'created',
+  'idle',
+  'pending',
+  'pending_login'
+]);
+
 export const LOGIN_SESSION_PENDING_STATUSES = new Set([
   'created',
   'pending',
   'waiting',
+  'waiting_for_user',
   'waiting_for_agent',
   'waiting_for_login',
   'in_progress'
@@ -56,4 +64,18 @@ export const DEFAULT_USER_ID = 'demo-user';
  */
 export function isReauthStatus(status) {
   return status === 'needs_reauth' || status === 'reauth_required';
+}
+
+/**
+ * 백엔드 작업 상태를 프론트 내부 상태로 정규화한다.
+ */
+export function normalizeShareJobStatus(status) {
+  if (status === 'queued') return SHARE_JOB_STATUS.queued;
+  if (status === 'claimed') return SHARE_JOB_STATUS.claimed;
+  if (status === 'success' || status === 'completed') return SHARE_JOB_STATUS.success;
+  if (status === 'partial') return SHARE_JOB_STATUS.partial;
+  if (status === 'failed') return SHARE_JOB_STATUS.failed;
+  if (status === 'needs_reauth' || status === 'reauth_required') return SHARE_JOB_STATUS.needsReauth;
+  if (status === 'submitting') return SHARE_JOB_STATUS.submitting;
+  return SHARE_JOB_STATUS.idle;
 }

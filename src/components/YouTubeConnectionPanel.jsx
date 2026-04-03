@@ -5,10 +5,10 @@ function getConnectionMessage(connectionState) {
   if (connectionState === CONNECTION_FLOW_STATE.connected) return 'YouTube 연결이 완료되었습니다.';
   if (connectionState === CONNECTION_FLOW_STATE.reauthRequired) return '세션이 만료되었습니다. 다시 연결하세요.';
   if (connectionState === CONNECTION_FLOW_STATE.waitingForAgentLogin) {
-    return 'Google 로그인과 2FA를 완료하는 중입니다.';
+    return '로컬 agent 로그인을 기다리는 중입니다.';
   }
   if (connectionState === CONNECTION_FLOW_STATE.loginFailed) return '로그인에 실패했습니다. 새 로그인 세션을 다시 생성하세요.';
-  return 'YouTube 연결이 필요합니다.';
+  return 'YouTube 연결이 필요합니다. connection 생성 후 loginSession을 만들어 주세요.';
 }
 
 /**
@@ -86,7 +86,8 @@ export default function YouTubeConnectionPanel({
 
         {loginSessionId && (
           <div className="message info">
-            <div>로컬 agent에서 아래 명령으로 로그인을 진행하세요.</div>
+            <div>loginSessionId: {loginSessionId}</div>
+            <div>아래 명령으로 로컬 agent 로그인을 진행하세요.</div>
             <code className="command-block">node agent/index.js login {loginSessionId}</code>
           </div>
         )}

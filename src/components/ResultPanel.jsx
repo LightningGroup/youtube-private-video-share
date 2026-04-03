@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '../api/client';
+import { ACTIVE_JOB_STATUSES, SHARE_JOB_STATUS, normalizeShareJobStatus } from '../constants/statuses';
 import { useJobPolling } from '../hooks/useJobPolling';
 import JobDetail from './JobDetail';
 import JobList from './JobList';
@@ -180,7 +181,7 @@ export default function ResultPanel({
   );
 
   useEffect(() => {
-    if (jobDetail?.status !== 'needs_reauth') return;
+    if (normalizeShareJobStatus(jobDetail?.status) !== SHARE_JOB_STATUS.needsReauth) return;
     onNeedsReauth?.();
   }, [jobDetail?.status, onNeedsReauth]);
 
@@ -211,9 +212,7 @@ export default function ResultPanel({
         selectedJobId={selectedJobId}
         onRefresh={() => refreshSelectedJob({ trigger: 'manual' })}
         loading={loading.detail}
-        isAutoRefreshing={
-          jobDetail?.status === 'queued' || jobDetail?.status === 'running' || jobDetail?.status === 'claimed'
-        }
+        isAutoRefreshing={ACTIVE_JOB_STATUSES.has(normalizeShareJobStatus(jobDetail?.status)) || jobDetail?.status === 'running'}
         lastUpdatedAt={formatUpdatedAt(detailUpdatedAt)}
         manualError={manualError}
         pollingStatusMessage={pollingStatusMessage}

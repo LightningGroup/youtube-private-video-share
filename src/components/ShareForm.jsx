@@ -52,6 +52,10 @@ export default function ShareForm({ connectionId, isConnectionReady, onSubmit, l
     <section className="panel">
       <h2>3) 공유 실행</h2>
       <div className="grid-form">
+        {!isConnectionReady && (
+          <p className="message info">연결 완료 전에는 공유 요청을 보낼 수 없습니다. 먼저 loginSession 로그인을 완료하세요.</p>
+        )}
+
         <div className="field">
           <label htmlFor="video-ids">Video IDs (줄바꿈/콤마 구분)</label>
           <textarea

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../api/client';
 import {
+  CONNECTION_PENDING_LOGIN_STATUSES,
   CONNECTION_FLOW_STATE,
   LOGIN_SESSION_FAILURE_STATUSES,
   LOGIN_SESSION_PENDING_STATUSES,
@@ -48,9 +49,14 @@ function deriveConnectionState({ connection, loginSession, previousState }) {
 
   const loginSessionStatus = normalizeStatus(loginSession?.status);
   if (LOGIN_SESSION_FAILURE_STATUSES.has(loginSessionStatus)) return CONNECTION_FLOW_STATE.loginFailed;
-  if (LOGIN_SESSION_SUCCESS_STATUSES.has(loginSessionStatus)) return CONNECTION_FLOW_STATE.connected;
   if (LOGIN_SESSION_PENDING_STATUSES.has(loginSessionStatus)) return CONNECTION_FLOW_STATE.waitingForAgentLogin;
+  if (LOGIN_SESSION_SUCCESS_STATUSES.has(loginSessionStatus) && getConnectionId(connection)) {
+    return CONNECTION_FLOW_STATE.waitingForAgentLogin;
+  }
   if (getLoginSessionId(loginSession)) return CONNECTION_FLOW_STATE.waitingForAgentLogin;
+  if (connectionStatus && CONNECTION_PENDING_LOGIN_STATUSES.has(connectionStatus)) {
+    return CONNECTION_FLOW_STATE.idle;
+  }
   if (previousState === CONNECTION_FLOW_STATE.reauthRequired) return CONNECTION_FLOW_STATE.reauthRequired;
   return CONNECTION_FLOW_STATE.idle;
 }
@@ -90,10 +96,16 @@ export function useConnectionFlow({ baseUrl, token, canUseProtectedApi, formatEr
 
       const detail = await apiClient.getConnection(baseUrl, token, connectionId);
       setConnection(detail);
-      syncConnectionState(detail, loginSession);
+      setConnectionState((previousState) =>
+        deriveConnectionState({
+          connection: detail,
+          loginSession,
+          previousState
+        })
+      );
       return detail;
     },
-    [baseUrl, canUseProtectedApi, loginSession, syncConnectionState, token]
+    [baseUrl, canUseProtectedApi, loginSession, token]
   );
 
   const refreshConnections = useCallback(async () => {
@@ -171,7 +183,7 @@ export function useConnectionFlow({ baseUrl, token, canUseProtectedApi, formatEr
     try {
       const created = await apiClient.createLoginSession(baseUrl, token, selectedConnectionId);
       setLoginSession(created);
-      syncConnectionState(connection, created);
+      setConnectionState(CONNECTION_FLOW_STATE.waitingForAgentLogin);
       setSuccessMessage('로그인 세션이 생성되었습니다. 로컬 agent에서 로그인해 주세요.');
     } catch (requestError) {
       setConnectionState(CONNECTION_FLOW_STATE.loginFailed);
@@ -179,7 +191,7 @@ export function useConnectionFlow({ baseUrl, token, canUseProtectedApi, formatEr
     } finally {
       setLoading((previous) => ({ ...previous, loginSession: false }));
     }
-  }, [baseUrl, canUseProtectedApi, connection, formatError, selectedConnectionId, syncConnectionState, token]);
+  }, [baseUrl, canUseProtectedApi, formatError, selectedConnectionId, token]);
 
   const markReauthRequired = useCallback(() => {
     setConnectionState(CONNECTION_FLOW_STATE.reauthRequired);
@@ -229,9 +241,23 @@ export function useConnectionFlow({ baseUrl, token, canUseProtectedApi, formatEr
             return;
           }
 
+          if (!LOGIN_SESSION_SUCCESS_STATUSES.has(nextStatus)) {
+            syncConnectionState(connection, nextLoginSession);
+            return;
+          }
+
           const refreshedConnection = await refreshConnection(selectedConnectionId);
-          syncConnectionState(refreshedConnection ?? connection, nextLoginSession);
-          setSuccessMessage('YouTube 연결이 완료되었습니다.');
+          const nextConnection = refreshedConnection ?? connection;
+          const isConnected = isConnectedConnection(nextConnection);
+
+          syncConnectionState(nextConnection, nextLoginSession);
+
+          if (isConnected) {
+            setSuccessMessage('YouTube 연결이 완료되었습니다.');
+            return;
+          }
+
+          setSuccessMessage('로그인 세션이 완료되었습니다. 연결 상태를 확인하는 중입니다.');
         } catch (requestError) {
           setError(formatError(requestError));
         }
