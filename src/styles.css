@@ -13,7 +13,7 @@ body {
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1060px;
   margin: 0 auto;
   padding: 16px;
 }
@@ -23,17 +23,105 @@ footer {
   margin-bottom: 16px;
 }
 
-.layout {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-}
-
 .panel {
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 14px;
+}
+
+.wizard-shell {
+  padding: 16px;
+}
+
+.page-header p {
+  margin-top: 8px;
+}
+
+.wizard-top {
+  margin-bottom: 16px;
+}
+
+.wizard-progress {
+  font-size: 13px;
+  margin: 0;
+  color: #4b5563;
+}
+
+.wizard-title {
+  margin: 8px 0 10px;
+}
+
+.step-indicator {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.step-chip {
+  background: #f8fafc;
+  color: #111827;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
+.step-chip-number {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #111827;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.step-chip[disabled] {
+  opacity: 0.6;
+}
+
+li.active .step-chip {
+  border-color: #2563eb;
+  background: #dbeafe;
+}
+
+li.active .step-chip-number {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.wizard-body > .panel {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.wizard-actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.wizard-footer-actions button {
+  white-space: nowrap;
+}
+
+.result-step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .field {
@@ -66,6 +154,10 @@ button {
   background: #2563eb;
   color: #fff;
   cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 button:disabled {
@@ -93,6 +185,12 @@ button.danger {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
+}
+
+.checkbox input {
+  width: auto;
+  flex: 0 0 auto;
 }
 
 .message {
@@ -131,9 +229,20 @@ button.danger {
   background: #f8fafc;
   color: #111827;
   border: 1px solid #dbeafe;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.job-list button > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.job-list button small {
+  color: #374151;
+  white-space: nowrap;
 }
 
 .job-list button.active {
@@ -142,10 +251,12 @@ button.danger {
 }
 
 .status {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   font-size: 12px;
   border-radius: 99px;
   padding: 2px 8px;
+  white-space: nowrap;
 }
 
 .status.success {
@@ -188,6 +299,7 @@ button.danger {
 table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 780px;
 }
 
 th,
@@ -203,13 +315,31 @@ td {
   color: #4b5563;
 }
 
+.artifact-list.in-cell {
+  margin: 0;
+  padding-left: 16px;
+}
+
 @media (max-width: 640px) {
   .container {
     padding: 10px;
   }
-}
 
-.artifact-list.in-cell {
-  margin: 0;
-  padding-left: 16px;
+  .step-indicator {
+    flex-direction: column;
+  }
+
+  .step-chip {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .job-list button {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  table {
+    min-width: 640px;
+  }
 }

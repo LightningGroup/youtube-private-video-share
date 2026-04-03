@@ -9,11 +9,31 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { useJobPolling } from './hooks/useJobPolling';
 import { normalizeBaseUrl } from './utils/normalizeBaseUrl';
 
+const WIZARD_STEPS = [
+  { key: 'server', title: '서버 연결 설정' },
+  { key: 'session', title: '세션 상태 확인' },
+  { key: 'share', title: '공유 실행 설정' },
+  { key: 'result', title: '작업 진행/결과 확인' }
+];
+
+const INITIAL_STEP = 1;
+
 function classifyError(error) {
   if (!error) return '알 수 없는 오류가 발생했습니다.';
   if (error.code === 'NETWORK_ERROR') return `네트워크 오류: ${error.message}`;
   if (error.code === 'AUTH_ERROR') return `인증 오류: ${error.message}`;
   return `요청 오류: ${error.message}`;
+}
+
+/**
+ * 단계 이동 가능 여부를 계산한다.
+ */
+function canEnterStep({ step, isConnectionReady, isSessionReady }) {
+  if (step <= 1) return true;
+  if (!isConnectionReady) return false;
+  if (step <= 2) return true;
+  if (!isSessionReady) return false;
+  return true;
 }
 
 export default function App() {
@@ -29,6 +49,7 @@ export default function App() {
   const [jobs, setJobs] = useState([]);
   const [selectedJobId, setSelectedJobId] = useState('');
   const [jobDetail, setJobDetail] = useState(null);
+  const [currentStep, setCurrentStep] = useState(INITIAL_STEP);
 
   const [loading, setLoading] = useState({
     health: false,
@@ -39,6 +60,11 @@ export default function App() {
   });
 
   const canUseProtectedApi = useMemo(() => normalizeBaseUrl(baseUrl) && token.trim(), [baseUrl, token]);
+  const isConnectionReady = useMemo(() => Boolean(canUseProtectedApi && healthResult?.ok), [canUseProtectedApi, healthResult]);
+  const isSessionReady = useMemo(
+    () => Boolean(isConnectionReady && session?.authenticated && session?.hasStorageState),
+    [isConnectionReady, session]
+  );
 
   const testConnection = async (candidateBaseUrl) => {
     const nextBaseUrl = normalizeBaseUrl(candidateBaseUrl || baseUrl);
@@ -170,6 +196,7 @@ export default function App() {
       await refreshJobs();
       const detail = await apiClient.getJobDetail(baseUrl, token, created.jobId);
       setJobDetail(detail);
+      setCurrentStep(4);
     } catch (error) {
       setJobMessage(classifyError(error));
     } finally {
@@ -177,14 +204,18 @@ export default function App() {
     }
   };
 
-  return (
-    <div className="container">
-      <header>
-        <h1>YouTube Private Share Dashboard</h1>
-        <p>Playwright 실행은 서버 API로 위임되고, 이 앱은 정적 React 프론트엔드로만 동작합니다.</p>
-      </header>
+  const currentStepMeta = WIZARD_STEPS[currentStep - 1];
+  const canGoBack = currentStep > 1;
+  const canGoForward = canEnterStep({ step: currentStep + 1, isConnectionReady, isSessionReady });
 
-      <div className="layout">
+  const goToStep = (nextStep) => {
+    if (!canEnterStep({ step: nextStep, isConnectionReady, isSessionReady })) return;
+    setCurrentStep(nextStep);
+  };
+
+  const renderStepContent = () => {
+    if (currentStep === 1) {
+      return (
         <ServerConfigPanel
           baseUrl={baseUrl}
           token={token}
@@ -194,7 +225,11 @@ export default function App() {
           healthResult={healthResult}
           loading={loading.health}
         />
+      );
+    }
 
+    if (currentStep === 2) {
+      return (
         <SessionPanel
           session={session}
           onRefresh={refreshSession}
@@ -204,9 +239,15 @@ export default function App() {
           error={sessionError}
           success={sessionSuccess}
         />
+      );
+    }
 
-        <ShareForm onSubmit={createShareJob} loading={loading.share} />
+    if (currentStep === 3) {
+      return <ShareForm onSubmit={createShareJob} loading={loading.share} />;
+    }
 
+    return (
+      <div className="result-step-content">
         <JobList
           jobs={jobs}
           selectedJobId={selectedJobId}
@@ -225,10 +266,59 @@ export default function App() {
 
         <JobDetail detail={jobDetail} baseUrl={baseUrl} artifactUrlBuilder={apiClient.artifactUrl} />
       </div>
+    );
+  };
+
+  return (
+    <div className="container">
+      <header className="page-header">
+        <h1>YouTube Private Share Wizard</h1>
+        <p>Playwright 실행은 서버 API로 위임되고, 이 앱은 정적 React 프론트엔드로만 동작합니다.</p>
+      </header>
+
+      <section className="wizard-shell panel">
+        <div className="wizard-top">
+          <p className="wizard-progress">Step {currentStep} / {WIZARD_STEPS.length}</p>
+          <h2 className="wizard-title">{currentStepMeta.title}</h2>
+          <ol className="step-indicator" aria-label="단계 표시">
+            {WIZARD_STEPS.map((step, index) => {
+              const stepNumber = index + 1;
+              const isActive = currentStep === stepNumber;
+              const isBlocked = !canEnterStep({ step: stepNumber, isConnectionReady, isSessionReady });
+
+              return (
+                <li key={step.key} className={isActive ? 'active' : ''}>
+                  <button
+                    type="button"
+                    className="step-chip"
+                    onClick={() => goToStep(stepNumber)}
+                    disabled={isBlocked}
+                    aria-current={isActive ? 'step' : undefined}
+                  >
+                    <span className="step-chip-number">{stepNumber}</span>
+                    <span className="step-chip-label">{step.title}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+
+        <div className="wizard-body">{renderStepContent()}</div>
+
+        <div className="wizard-actions">
+          <button type="button" onClick={() => goToStep(currentStep - 1)} disabled={!canGoBack}>
+            이전 단계
+          </button>
+          <button type="button" onClick={() => goToStep(currentStep + 1)} disabled={!canGoForward}>
+            다음 단계
+          </button>
+        </div>
+      </section>
 
       {jobMessage && <p className="message info">{jobMessage}</p>}
 
-      <footer className="row gap-sm wrap">
+      <footer className="row gap-sm wrap wizard-footer-actions">
         <button type="button" onClick={refreshJobs} disabled={!canUseProtectedApi || loading.jobs}>
           최근 작업 목록 새로고침
         </button>
