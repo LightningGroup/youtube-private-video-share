@@ -1,12 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { apiClient } from './api/client';
 import ServerConfigPanel from './components/ServerConfigPanel';
 import SessionPanel from './components/SessionPanel';
 import ShareForm from './components/ShareForm';
-import JobList from './components/JobList';
-import JobDetail from './components/JobDetail';
+import ResultPanel from './components/ResultPanel';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { useJobPolling } from './hooks/useJobPolling';
 import { normalizeBaseUrl } from './utils/normalizeBaseUrl';
 
 const WIZARD_STEPS = [
@@ -45,18 +43,13 @@ export default function App() {
   const [sessionError, setSessionError] = useState('');
   const [sessionSuccess, setSessionSuccess] = useState('');
   const [jobMessage, setJobMessage] = useState('');
-
-  const [jobs, setJobs] = useState([]);
-  const [selectedJobId, setSelectedJobId] = useState('');
-  const [jobDetail, setJobDetail] = useState(null);
+  const [pendingInitialJobId, setPendingInitialJobId] = useState('');
   const [currentStep, setCurrentStep] = useState(INITIAL_STEP);
 
   const [loading, setLoading] = useState({
     health: false,
     session: false,
-    jobs: false,
-    share: false,
-    detail: false
+    share: false
   });
 
   const canUseProtectedApi = useMemo(() => normalizeBaseUrl(baseUrl) && token.trim(), [baseUrl, token]);
@@ -148,38 +141,6 @@ export default function App() {
     }
   };
 
-  const refreshJobs = useCallback(async () => {
-    if (!canUseProtectedApi) return;
-    setLoading((prev) => ({ ...prev, jobs: true }));
-
-    try {
-      const data = await apiClient.getJobs(baseUrl, token);
-      const items = Array.isArray(data?.items) ? data.items : [];
-      setJobs(items);
-    } catch (error) {
-      setJobMessage(classifyError(error));
-    } finally {
-      setLoading((prev) => ({ ...prev, jobs: false }));
-    }
-  }, [baseUrl, token, canUseProtectedApi]);
-
-  const fetchJobDetail = useCallback(async () => {
-    if (!selectedJobId || !canUseProtectedApi) return;
-
-    setLoading((prev) => ({ ...prev, detail: true }));
-    try {
-      const detail = await apiClient.getJobDetail(baseUrl, token, selectedJobId);
-      setJobDetail(detail);
-      await refreshJobs();
-    } catch (_) {
-      // polling 중 간헐 오류는 무시
-    } finally {
-      setLoading((prev) => ({ ...prev, detail: false }));
-    }
-  }, [baseUrl, token, selectedJobId, canUseProtectedApi, refreshJobs]);
-
-  useJobPolling(jobDetail, fetchJobDetail, 2500);
-
   const createShareJob = async (payload) => {
     if (!canUseProtectedApi) {
       alert('서버 URL과 관리자 토큰을 먼저 입력해 주세요.');
@@ -192,10 +153,7 @@ export default function App() {
     try {
       const created = await apiClient.createShareJob(baseUrl, token, payload);
       setJobMessage(`작업이 생성되었습니다. jobId=${created.jobId}, status=${created.status}`);
-      setSelectedJobId(created.jobId);
-      await refreshJobs();
-      const detail = await apiClient.getJobDetail(baseUrl, token, created.jobId);
-      setJobDetail(detail);
+      setPendingInitialJobId(created.jobId);
       setCurrentStep(4);
     } catch (error) {
       setJobMessage(classifyError(error));
@@ -247,25 +205,14 @@ export default function App() {
     }
 
     return (
-      <div className="result-step-content">
-        <JobList
-          jobs={jobs}
-          selectedJobId={selectedJobId}
-          onSelect={async (jobId) => {
-            setSelectedJobId(jobId);
-            setJobDetail(null);
-            try {
-              const detail = await apiClient.getJobDetail(baseUrl, token, jobId);
-              setJobDetail(detail);
-            } catch (error) {
-              setJobMessage(classifyError(error));
-            }
-          }}
-          loading={loading.jobs}
-        />
-
-        <JobDetail detail={jobDetail} baseUrl={baseUrl} artifactUrlBuilder={apiClient.artifactUrl} />
-      </div>
+      <ResultPanel
+        baseUrl={baseUrl}
+        token={token}
+        canUseProtectedApi={canUseProtectedApi}
+        initialJobId={pendingInitialJobId}
+        onInitialJobHandled={() => setPendingInitialJobId('')}
+        formatError={classifyError}
+      />
     );
   };
 
@@ -317,15 +264,6 @@ export default function App() {
       </section>
 
       {jobMessage && <p className="message info">{jobMessage}</p>}
-
-      <footer className="row gap-sm wrap wizard-footer-actions">
-        <button type="button" onClick={refreshJobs} disabled={!canUseProtectedApi || loading.jobs}>
-          최근 작업 목록 새로고침
-        </button>
-        <button type="button" onClick={fetchJobDetail} disabled={!selectedJobId || !canUseProtectedApi || loading.detail}>
-          {loading.detail ? '상세 조회 중...' : '선택 작업 상세 새로고침'}
-        </button>
-      </footer>
     </div>
   );
 }

@@ -114,10 +114,6 @@ li.active .step-chip-number {
   flex-wrap: wrap;
 }
 
-.wizard-footer-actions button {
-  white-space: nowrap;
-}
-
 .result-step-content {
   display: flex;
   flex-direction: column;
@@ -169,6 +165,12 @@ button.danger {
   background: #dc2626;
 }
 
+button.secondary-button {
+  background: #f8fafc;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+}
+
 .row {
   display: flex;
 }
@@ -212,6 +214,24 @@ button.danger {
 .message.info {
   background: #e0e7ff;
   color: #3730a3;
+}
+
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.panel-header h2 {
+  margin: 0;
+}
+
+.panel-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #4b5563;
 }
 
 .job-list {
@@ -337,6 +357,10 @@ td {
   .job-list button {
     grid-template-columns: 1fr;
     justify-items: start;
+  }
+
+  .panel-header {
+    flex-direction: column;
   }
 
   table {

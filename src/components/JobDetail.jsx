@@ -8,19 +8,55 @@ function statusClass(status) {
   return 'status running';
 }
 
-export default function JobDetail({ detail, baseUrl, artifactUrlBuilder }) {
-  if (!detail) {
+/**
+ * 선택된 작업 상세와 상세 갱신 상태를 렌더링한다.
+ */
+export default function JobDetail({
+  viewState,
+  detail,
+  selectedJobId,
+  onRefresh,
+  loading,
+  isAutoRefreshing,
+  lastUpdatedAt,
+  manualError,
+  pollingStatusMessage,
+  baseUrl,
+  artifactUrlBuilder
+}) {
+  if (viewState !== 'ready') {
     return (
       <section className="panel">
-        <h2>5) 작업 상세</h2>
-        <p>선택된 작업이 없습니다.</p>
+        <div className="panel-header">
+          <div>
+            <h2>5) 작업 상세</h2>
+            {lastUpdatedAt && <p className="panel-meta">마지막 갱신 {lastUpdatedAt}</p>}
+          </div>
+          <button type="button" className="secondary-button" onClick={() => onRefresh()} disabled={!selectedJobId || loading}>
+            {loading ? '상세 조회 중...' : '최신 상태 가져오기'}
+          </button>
+        </div>
+        {viewState === 'idle' && <p>선택된 작업이 없습니다.</p>}
+        {viewState === 'loading' && <p>작업 상세를 불러오는 중입니다.</p>}
+        {viewState === 'manual_error' && <p className="message error">{manualError}</p>}
       </section>
     );
   }
 
   return (
     <section className="panel">
-      <h2>5) 작업 상세</h2>
+      <div className="panel-header">
+        <div>
+          <h2>5) 작업 상세</h2>
+          {lastUpdatedAt && <p className="panel-meta">마지막 갱신 {lastUpdatedAt}</p>}
+          {isAutoRefreshing && <p className="panel-meta">실행 중인 작업이라 자동 갱신 중입니다.</p>}
+          {pollingStatusMessage && <p className="panel-meta">{pollingStatusMessage}</p>}
+        </div>
+        <button type="button" className="secondary-button" onClick={() => onRefresh()} disabled={loading}>
+          {loading ? '상세 조회 중...' : '최신 상태 가져오기'}
+        </button>
+      </div>
+      {manualError && <p className="message error">{manualError}</p>}
       <p>
         Job ID: <strong>{detail.jobId}</strong>
       </p>
@@ -48,7 +84,7 @@ export default function JobDetail({ detail, baseUrl, artifactUrlBuilder }) {
             </tr>
           </thead>
           <tbody>
-            {(detail.results || []).map((item) => (
+            {(detail.results ?? []).map((item) => (
               <tr key={item.videoId}>
                 <td>{item.videoId}</td>
                 <td>
@@ -79,7 +115,7 @@ export default function JobDetail({ detail, baseUrl, artifactUrlBuilder }) {
 
       <h3>로그</h3>
       <ul className="log-list">
-        {(detail.logs || []).map((log, index) => (
+        {(detail.logs ?? []).map((log, index) => (
           <li key={`${log.time}-${index}`}>
             [{new Date(log.time).toLocaleString()}] [{log.level}] {log.message}
           </li>
