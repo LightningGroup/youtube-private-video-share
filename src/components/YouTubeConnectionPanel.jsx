@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { CONNECTION_FLOW_STATE } from '../constants/statuses';
 
+const WAITING_FOR_USER_STATUS = 'waiting_for_user';
+
 function getConnectionMessage(connectionState) {
   if (connectionState === CONNECTION_FLOW_STATE.connected) return 'YouTube 연결이 완료되었습니다.';
   if (connectionState === CONNECTION_FLOW_STATE.reauthRequired) return '세션이 만료되었습니다. 다시 연결하세요.';
   if (connectionState === CONNECTION_FLOW_STATE.waitingForAgentLogin) {
-    return '로컬 agent 로그인을 기다리는 중입니다.';
+    return '로컬 agent 로그인을 기다리는 중입니다. YouTube Studio 진입과 agent 명령 종료까지 완료되어야 다음 단계로 이동할 수 있습니다.';
   }
   if (connectionState === CONNECTION_FLOW_STATE.loginFailed) return '로그인에 실패했습니다. 새 로그인 세션을 다시 생성하세요.';
   return 'YouTube 연결이 필요합니다. connection 생성 후 loginSession을 만들어 주세요.';
@@ -31,6 +33,7 @@ export default function YouTubeConnectionPanel({
   const isCreatingConnection = loading.connection;
   const isCreatingLoginSession = loading.loginSession;
   const isBusy = isCreatingConnection || isCreatingLoginSession || loading.refreshing;
+  const isWaitingForUser = loginSession?.status === WAITING_FOR_USER_STATUS;
 
   return (
     <section className="panel">
@@ -89,7 +92,15 @@ export default function YouTubeConnectionPanel({
             <div>loginSessionId: {loginSessionId}</div>
             <div>아래 명령으로 로컬 agent 로그인을 진행하세요.</div>
             <code className="command-block">node agent/index.js login {loginSessionId}</code>
+            <div>브라우저 로그인 후 `studio.youtube.com`까지 진입하고, 터미널 명령이 정상 종료되어야 연결 완료로 바뀝니다.</div>
           </div>
+        )}
+
+        {isWaitingForUser && (
+          <p className="message info">
+            현재 loginSession이 `waiting_for_user` 상태입니다. 로그인만 끝내지 말고 브라우저에서 YouTube Studio까지 이동한 뒤
+            agent 명령이 종료되었는지 확인하세요.
+          </p>
         )}
 
         {error && <p className="message error">{error}</p>}
