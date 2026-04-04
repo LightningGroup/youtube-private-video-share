@@ -1,6 +1,8 @@
 import { normalizeBaseUrl } from '../utils/normalizeBaseUrl';
 import { normalizeShareJobStatus, SHARE_JOB_STATUS } from '../constants/statuses';
 
+const MESSAGE_PREVIEW_LENGTH = 160;
+
 function statusClass(status) {
   const normalizedStatus = normalizeShareJobStatus(status);
   if (normalizedStatus === SHARE_JOB_STATUS.success) return 'status success';
@@ -10,6 +12,33 @@ function statusClass(status) {
   if (normalizedStatus === SHARE_JOB_STATUS.queued) return 'status queued';
   if (normalizedStatus === SHARE_JOB_STATUS.claimed) return 'status running';
   return 'status running';
+}
+
+function normalizeMessagePreview(message) {
+  return String(message ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function createMessagePreview(message) {
+  const normalizedMessage = normalizeMessagePreview(message);
+  if (normalizedMessage.length <= MESSAGE_PREVIEW_LENGTH) {
+    return normalizedMessage || '-';
+  }
+
+  return `${normalizedMessage.slice(0, MESSAGE_PREVIEW_LENGTH)}...`;
+}
+
+function shouldCollapseMessage(message) {
+  const rawMessage = String(message ?? '');
+  const normalizedMessage = normalizeMessagePreview(message);
+  if (!normalizedMessage) {
+    return false;
+  }
+
+  if (rawMessage.includes('\n')) {
+    return true;
+  }
+
+  return normalizedMessage.length > MESSAGE_PREVIEW_LENGTH;
 }
 
 /**
@@ -28,6 +57,8 @@ export default function JobDetail({
   baseUrl,
   artifactUrlBuilder
 }) {
+  const normalizedStatus = normalizeShareJobStatus(detail?.status);
+
   if (viewState !== 'ready') {
     return (
       <section className="panel">
@@ -67,7 +98,12 @@ export default function JobDetail({
       <p>
         상태: <span className={statusClass(detail.status)}>{detail.status}</span>
       </p>
-      {normalizeShareJobStatus(detail.status) === SHARE_JOB_STATUS.needsReauth && (
+      {normalizedStatus === SHARE_JOB_STATUS.queued && (
+        <p className="message info">
+          작업은 생성됐지만 아직 agent가 가져가지 않았습니다. 서비스 저장소에서 `npm run agent`를 실행해 queue를 소비하세요.
+        </p>
+      )}
+      {normalizedStatus === SHARE_JOB_STATUS.needsReauth && (
         <p className="message error">세션 만료, 다시 연결 필요</p>
       )}
 
@@ -98,7 +134,18 @@ export default function JobDetail({
                   <span className={statusClass(item.status)}>{item.status}</span>
                 </td>
                 <td>{item.addedCount}</td>
-                <td>{item.message}</td>
+                <td className="result-message-cell">
+                  {!item.message && '-'}
+                  {item.message && !shouldCollapseMessage(item.message) && (
+                    <div className="result-message-inline">{item.message}</div>
+                  )}
+                  {item.message && shouldCollapseMessage(item.message) && (
+                    <details className="result-message-details">
+                      <summary>{createMessagePreview(item.message)}</summary>
+                      <pre className="result-message-full">{item.message}</pre>
+                    </details>
+                  )}
+                </td>
                 <td>
                   {Array.isArray(item.artifacts) && item.artifacts.length > 0 ? (
                     <ul className="artifact-list in-cell">
