@@ -1,56 +1,72 @@
-# YouTube Private Video Share Dashboard (React + Vite)
+# YouTube Multi Private Video Share
 
-이 저장소는 **서버 API를 호출하는 관리자용 프론트엔드 SPA**입니다.
+이 저장소는 YouTube 비공개 공유 작업을 관리하는 React + Vite 기반 관리자용 SPA입니다.
 
-- 브라우저에서 동작하는 React + Vite 정적 앱입니다.
-- Playwright/Chromium/CLI 실행은 프론트에서 하지 않습니다.
-- 실제 작업 실행은 별도의 백엔드 서버 API가 담당합니다.
-- 관리자 토큰/서버 URL은 런타임 입력값으로 `localStorage`에 저장됩니다.
+- 브라우저에서 동작하는 정적 프론트엔드입니다.
+- 실제 공유 실행, 인증 상태 관리, 작업 저장은 백엔드 API가 담당합니다.
+- 서버 URL과 관리자 토큰은 런타임 입력값으로 `localStorage`에 저장합니다.
+- YouTube 로그인 자체는 브라우저 앱이 아니라 별도 로컬 agent가 수행합니다.
 
-## 프로젝트 개요
+## 현재 사용자 흐름
 
-이 UI는 다음 흐름을 제공합니다.
+UI는 4단계 위저드로 동작합니다.
 
-1. 서버 Base URL 및 관리자 토큰 입력/저장
-2. 서버 연결 테스트 (`GET /health`)
-3. 세션 상태 확인 (`GET /api/session/status`)
-4. `storageState.json` 업로드/삭제
-5. Video ID + Email 목록 정규화 후 공유 작업 실행 (`POST /api/jobs/share`)
-6. 최근 작업 목록 조회 (`GET /api/jobs`)
-7. 작업 상세/로그/아티팩트 확인 (`GET /api/jobs/:jobId`)
+1. 서버 연결 설정
+   - 서버 Base URL 입력
+   - 관리자 토큰 입력
+   - `GET /health`로 연결 테스트
+2. YouTube 연결
+   - `POST /api/connections`로 connection 생성
+   - `POST /api/connections/:connectionId/login-sessions`로 login session 생성
+   - 발급된 `loginSessionId`로 로컬 agent 로그인 진행
+   - `GET /api/login-sessions/:loginSessionId` 폴링으로 로그인 완료 감시
+3. 공유 실행
+   - Video ID / 이메일 목록 입력
+   - 입력값 정규화 후 `POST /api/jobs/share` 요청
+   - 요청 payload에 `connectionId` 포함
+4. 결과 확인
+   - `GET /api/jobs`로 최근 작업 목록 조회
+   - `GET /api/jobs/:jobId`로 상세, 로그, 아티팩트 확인
+   - 실행 중 작업은 2.5초 간격으로 자동 갱신
 
-## 런타임 설정 방식 (중요)
+## 로컬 agent 로그인
 
-- 입력 항목
-  - 서버 Base URL
-  - 관리자 토큰
-- 저장 위치
-  - `localStorage['ytps.baseUrl']`
-  - `localStorage['ytps.adminToken']`
-- Base URL은 마지막 `/`를 자동 제거해 정규화합니다.
-- 토큰은 빌드 타임 환경변수로 주입하지 않습니다.
+Step 2에서 `loginSessionId`가 생성되면 로컬 환경에서 아래 명령을 실행해야 합니다.
 
-## storageState.json 업로드 흐름
+```bash
+node agent/index.js login <loginSessionId>
+```
 
-1. 서버 URL/토큰 입력 후 저장
-2. 세션 패널에서 상태 조회
-3. `storageState.json` 파일 선택 후 업로드
-4. 업로드 성공 시 세션 상태 재조회
-5. 필요 시 `storageState` 삭제 버튼으로 제거
+이 단계가 완료되어 connection 상태가 `connected`가 되기 전에는 공유 요청을 보낼 수 없습니다.
 
-## 작업 실행 및 결과 확인 흐름
+## 공유 요청 입력 규칙
 
-1. Video ID / Email 목록 입력 (줄바꿈, 콤마 모두 허용)
-2. 입력값 자동 정규화
-   - trim
-   - 빈 값 제거
-   - 중복 제거
-   - 이메일 기본 형식 검증
-3. `Dry-run 실행` 또는 `실제 실행` 버튼 클릭
-4. 생성된 `jobId` 표시
-5. 최근 작업 목록과 작업 상세를 통해 진행 상태 확인
-6. `queued/running` 상태일 때 2.5초 간격 polling
-7. 비디오별 결과, 로그, 아티팩트 링크 확인
+- Video ID와 이메일은 줄바꿈 또는 콤마로 입력할 수 있습니다.
+- 입력값은 trim, 빈 값 제거, 중복 제거를 거쳐 정규화합니다.
+- 이메일은 기본 형식 검증 후 유효한 값만 전송합니다.
+- `Dry-run 실행`과 `실제 실행`을 모두 지원합니다.
+- `needs_reauth` 상태가 반환되면 다시 Step 2로 돌아가 재연결해야 합니다.
+
+## 런타임 설정
+
+- `localStorage['ytps.baseUrl']`
+- `localStorage['ytps.adminToken']`
+
+Base URL은 마지막 `/`를 제거해 정규화합니다. 관리자 토큰은 빌드 타임 환경변수로 주입하지 않습니다.
+
+## API 요약
+
+- `GET /health`
+- `POST /api/connections`
+- `GET /api/connections`
+- `GET /api/connections/:connectionId`
+- `POST /api/connections/:connectionId/login-sessions`
+- `GET /api/login-sessions/:loginSessionId`
+- `POST /api/jobs/share`
+- `GET /api/jobs`
+- `GET /api/jobs/:jobId`
+
+보호 API 요청에는 `Authorization: Bearer <token>` 헤더와 `x-user-id` 헤더를 함께 전송합니다.
 
 ## 로컬 개발
 
@@ -68,15 +84,8 @@ npm run preview
 
 ## Netlify 배포
 
-`netlify.toml`이 포함되어 있어 정적 배포가 바로 가능합니다.
+`netlify.toml`이 포함되어 있어 정적 배포가 가능합니다.
 
 - Build command: `npm run build`
 - Publish directory: `dist`
-- SPA 리다이렉트: `/* -> /index.html` (200)
-
-## 환경 변수 파일
-
-`.env.example`는 샘플만 포함합니다.
-
-- 관리자 토큰 같은 민감값은 저장하지 마세요.
-- 이 프로젝트는 서버 URL/토큰을 런타임에 입력받습니다.
+- SPA redirect: `/* -> /index.html` (200)
